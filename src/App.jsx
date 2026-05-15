@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 /*
 ========================================
 GENELINK — VERSÃO ESTÁVEL
-- Corrigido tela branca
-- Corrigido fetch
-- Corrigido renderização
-- Corrigido CSS
-- Tratamento de erros
-- Compatível com Vercel + Vite
+- Corrigido teclado fechando
+- Corrigido re-render excessivo
+- Estrutura organizada
+- Cards clicáveis
+- Busca funcional
+- Preparado para Supabase
 ========================================
 */
 
@@ -23,6 +23,12 @@ const COLORS = {
 
 const NCBI_BASE =
   "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
+
+/*
+========================================
+COMPONENTES FORA DO APP
+========================================
+*/
 
 function IconDNA() {
   return (
@@ -40,6 +46,81 @@ function IconDNA() {
   );
 }
 
+function ButtonPrimary({ children, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: COLORS.primary,
+        color: "white",
+        border: "none",
+        padding: "12px 18px",
+        borderRadius: 8,
+        cursor: "pointer",
+        fontWeight: "bold",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function ButtonSecondary({ children, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        background: COLORS.surface,
+        color: COLORS.text,
+        border: `1px solid ${COLORS.border}`,
+        padding: "12px 18px",
+        borderRadius: 8,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Card({ children, onClick }) {
+  return (
+    <div
+      onClick={onClick}
+      style={{
+        background: "white",
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 12,
+        padding: 20,
+        cursor: onClick ? "pointer" : "default",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Input(props) {
+  return (
+    <input
+      {...props}
+      style={{
+        width: "100%",
+        padding: 12,
+        borderRadius: 8,
+        border: `1px solid ${COLORS.border}`,
+        fontSize: 15,
+      }}
+    />
+  );
+}
+
+/*
+========================================
+APP PRINCIPAL
+========================================
+*/
+
 export default function App() {
   const [page, setPage] = useState("landing");
 
@@ -49,6 +130,7 @@ export default function App() {
   const [user, setUser] = useState(null);
 
   const [email, setEmail] = useState("");
+
   const [password, setPassword] =
     useState("");
 
@@ -107,7 +189,7 @@ export default function App() {
 
   /*
   ========================================
-  LOGIN SIMPLES
+  LOGIN
   ========================================
   */
 
@@ -130,23 +212,11 @@ export default function App() {
 
   /*
   ========================================
-  BUSCA REAL NCBI
+  BUSCA GENES
   ========================================
   */
 
   const searchGenes = async () => {
-  setGenes([
-    {
-      uid: "123",
-      name: "BRCA1",
-      description:
-        "Gene associado ao câncer de mama.",
-      organism: {
-        scientificname: "Homo sapiens",
-      },
-    },
-  ]);
-};
     if (!search.trim()) return;
 
     setLoading(true);
@@ -156,16 +226,15 @@ export default function App() {
     setGenes([]);
 
     try {
-      /*
-      =========================
-      BUSCA IDS
-      =========================
-      */
-
       const response = await fetch(
         `${NCBI_BASE}/esearch.fcgi?db=gene&term=${encodeURIComponent(
-          search
-        )}&retmode=json`
+          `${search} AND human[organism]`
+        )}&retmode=json`,
+        {
+          headers: {
+            Accept: "application/json",
+          },
+        }
       );
 
       if (!response.ok) {
@@ -184,12 +253,6 @@ export default function App() {
         return;
       }
 
-      /*
-      =========================
-      DETALHES DOS GENES
-      =========================
-      */
-
       const summaryResponse = await fetch(
         `${NCBI_BASE}/esummary.fcgi?db=gene&id=${ids
           .slice(0, 5)
@@ -207,7 +270,24 @@ export default function App() {
 
       const results = ids
         .slice(0, 5)
-        .map((id) => summaryData?.result?.[id])
+        .map((id) => {
+          const gene =
+            summaryData?.result?.[id];
+
+          if (!gene) return null;
+
+          return {
+            uid: gene.uid || id,
+            name:
+              gene.name ||
+              "Gene desconhecido",
+            description:
+              gene.description ||
+              "Sem descrição disponível.",
+            organism:
+              gene.organism || {},
+          };
+        })
         .filter(Boolean);
 
       setGenes(results);
@@ -225,82 +305,7 @@ export default function App() {
 
   /*
   ========================================
-  COMPONENTES UI
-  ========================================
-  */
-
-  const ButtonPrimary = ({
-    children,
-    onClick,
-  }) => (
-    <button
-      onClick={onClick}
-      style={{
-        background: COLORS.primary,
-        color: "white",
-        border: "none",
-        padding: "12px 18px",
-        borderRadius: 8,
-        cursor: "pointer",
-        fontWeight: "bold",
-      }}
-    >
-      {children}
-    </button>
-  );
-
-  const ButtonSecondary = ({
-    children,
-    onClick,
-  }) => (
-    <button
-      onClick={onClick}
-      style={{
-        background: COLORS.surface,
-        color: COLORS.text,
-        border: `1px solid ${COLORS.border}`,
-        padding: "12px 18px",
-        borderRadius: 8,
-        cursor: "pointer",
-      }}
-    >
-      {children}
-    </button>
-  );
-
-  const Card = ({
-  children,
-  onClick,
-}) => (
-    <<div
-  onClick={onClick}
-  style={{
-        background: "white",
-        border: `1px solid ${COLORS.border}`,
-        borderRadius: 12,
-        padding: 20,
-      }}
-    >
-      {children}
-    </div>
-  );
-
-  const Input = (props) => (
-    <input
-      {...props}
-      style={{
-        width: "100%",
-        padding: 12,
-        borderRadius: 8,
-        border: `1px solid ${COLORS.border}`,
-        fontSize: 15,
-      }}
-    />
-  );
-
-  /*
-  ========================================
-  APP
+  RENDER
   ========================================
   */
 
@@ -314,8 +319,7 @@ export default function App() {
           borderBottom: `1px solid ${COLORS.border}`,
           display: "flex",
           alignItems: "center",
-          justifyContent:
-            "space-between",
+          justifyContent: "space-between",
           padding: "0 24px",
           background: "white",
         }}
@@ -616,18 +620,16 @@ export default function App() {
 
             {/* ERROR */}
 
-            {error &&
-              page ===
-                "dashboard" && (
-                <div
-                  style={{
-                    marginTop: 20,
-                    color: "red",
-                  }}
-                >
-                  {error}
-                </div>
-              )}
+            {error && (
+              <div
+                style={{
+                  marginTop: 20,
+                  color: "red",
+                }}
+              >
+                {error}
+              </div>
+            )}
 
             {/* RESULTS */}
 
@@ -643,6 +645,12 @@ export default function App() {
               {genes.map((gene) => (
                 <Card
                   key={gene.uid}
+                  onClick={() =>
+                    window.open(
+                      `https://www.ncbi.nlm.nih.gov/gene/${gene.uid}`,
+                      "_blank"
+                    )
+                  }
                 >
                   <div
                     style={{
@@ -658,8 +666,7 @@ export default function App() {
                     }}
                   >
                     <h3>
-                      {gene.name ||
-                        "Gene desconhecido"}
+                      {gene.name}
                     </h3>
 
                     <div
@@ -669,8 +676,7 @@ export default function App() {
                           COLORS.textMuted,
                       }}
                     >
-                      ID:{" "}
-                      {gene.uid}
+                      ID: {gene.uid}
                     </div>
                   </div>
 
@@ -682,8 +688,7 @@ export default function App() {
                       lineHeight: 1.6,
                     }}
                   >
-                    {gene.description ||
-                      "Sem descrição disponível."}
+                    {gene.description}
                   </p>
 
                   <div
