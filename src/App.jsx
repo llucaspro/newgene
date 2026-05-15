@@ -272,8 +272,9 @@ export default function App() {
   children,
   onClick,
 }) => (
-    <div
-      style={{
+    <<div
+  onClick={onClick}
+  style={{
         background: "white",
         border: `1px solid ${COLORS.border}`,
         borderRadius: 12,
