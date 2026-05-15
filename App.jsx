@@ -1,342 +1,689 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
-// Configurações
+/*
+========================================
+GENELINK — VERSÃO ESTÁVEL
+- Corrigido tela branca
+- Corrigido fetch
+- Corrigido renderização
+- Corrigido CSS
+- Tratamento de erros
+- Compatível com Vercel + Vite
+========================================
+*/
+
 const COLORS = {
   bg: "#ffffff",
   surface: "#f8f9fa",
   primary: "#0066cc",
-  primaryLight: "#e6f0ff",
   text: "#1a1a1a",
   textMuted: "#666666",
-  border: "#e0e0e0",
+  border: "#e5e7eb",
 };
 
 const NCBI_BASE =
   "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
 
-const Icon = ({ name }) => {
-  const icons = {
-    dna: (
-      <svg
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-      >
-        <path d="M2 15c6.667-6 13.333 0 20-6" />
-        <path d="M2 9c6.667 6 13.333 0 20 6" />
-      </svg>
-    ),
-  };
-
-  return icons[name] || null;
-};
+function IconDNA() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path d="M2 15c6.667-6 13.333 0 20-6" />
+      <path d="M2 9c6.667 6 13.333 0 20 6" />
+    </svg>
+  );
+}
 
 export default function App() {
   const [page, setPage] = useState("landing");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  const [isLoggedIn, setIsLoggedIn] =
+    useState(false);
+
   const [user, setUser] = useState(null);
 
-  // Busca genética
+  const [email, setEmail] = useState("");
+  const [password, setPassword] =
+    useState("");
+
   const [search, setSearch] = useState("");
+
   const [genes, setGenes] = useState([]);
-  const [loading, setLoading] = useState(false);
+
+  const [loading, setLoading] =
+    useState(false);
+
   const [error, setError] = useState("");
 
-  // CSS
+  /*
+  ========================================
+  CSS GLOBAL
+  ========================================
+  */
+
   useEffect(() => {
     const css = `
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-        font-family: sans-serif;
+      *{
+        margin:0;
+        padding:0;
+        box-sizing:border-box;
       }
 
-      body {
-        background: ${COLORS.bg};
-        color: ${COLORS.text};
+      body{
+        font-family:Arial, Helvetica, sans-serif;
+        background:${COLORS.bg};
+        color:${COLORS.text};
       }
 
-      .btn-primary {
-        background: ${COLORS.primary};
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: bold;
+      button{
+        transition:0.2s;
       }
 
-      .btn-secondary {
-        background: ${COLORS.surface};
-        border: 1px solid ${COLORS.border};
-        padding: 10px 20px;
-        border-radius: 6px;
-        cursor: pointer;
+      button:hover{
+        opacity:0.92;
       }
 
-      .card {
-        background: white;
-        border: 1px solid ${COLORS.border};
-        padding: 20px;
-        border-radius: 8px;
-      }
-
-      input {
-        padding: 10px;
-        border-radius: 6px;
-        border: 1px solid ${COLORS.border};
+      input{
+        outline:none;
       }
     `;
 
     const style = document.createElement("style");
-    style.textContent = css;
+
+    style.innerHTML = css;
+
     document.head.appendChild(style);
+
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
+  /*
+  ========================================
+  LOGIN SIMPLES
+  ========================================
+  */
+
   const handleLogin = () => {
-    setUser({ name: "Pesquisador" });
+    if (!email || !password) {
+      setError("Preencha email e senha.");
+      return;
+    }
+
+    setError("");
+
+    setUser({
+      name: email.split("@")[0],
+    });
+
     setIsLoggedIn(true);
+
     setPage("dashboard");
   };
 
-  // Busca real no NCBI
+  /*
+  ========================================
+  BUSCA REAL NCBI
+  ========================================
+  */
+
   const searchGenes = async () => {
-    if (!search) return;
+    if (!search.trim()) return;
 
     setLoading(true);
+
     setError("");
+
     setGenes([]);
 
     try {
-      // Primeiro busca IDs
-      const searchResponse = await fetch(
-        `${NCBI_BASE}/esearch.fcgi?db=gene&term=${search}&retmode=json`
+      /*
+      =========================
+      BUSCA IDS
+      =========================
+      */
+
+      const response = await fetch(
+        `${NCBI_BASE}/esearch.fcgi?db=gene&term=${encodeURIComponent(
+          search
+        )}&retmode=json`
       );
 
-      const searchData = await searchResponse.json();
+      if (!response.ok) {
+        throw new Error(
+          "Erro ao buscar genes."
+        );
+      }
 
-      const ids = searchData.esearchresult.idlist.slice(0, 5);
+      const data = await response.json();
 
-      if (ids.length === 0) {
+      const ids =
+        data?.esearchresult?.idlist || [];
+
+      if (!ids.length) {
         setError("Nenhum gene encontrado.");
-        setLoading(false);
         return;
       }
 
-      // Depois pega detalhes
+      /*
+      =========================
+      DETALHES DOS GENES
+      =========================
+      */
+
       const summaryResponse = await fetch(
-        `${NCBI_BASE}/esummary.fcgi?db=gene&id=${ids.join(",")}&retmode=json`
+        `${NCBI_BASE}/esummary.fcgi?db=gene&id=${ids
+          .slice(0, 5)
+          .join(",")}&retmode=json`
       );
 
-      const summaryData = await summaryResponse.json();
+      if (!summaryResponse.ok) {
+        throw new Error(
+          "Erro ao buscar detalhes."
+        );
+      }
 
-      const results = ids.map((id) => summaryData.result[id]);
+      const summaryData =
+        await summaryResponse.json();
+
+      const results = ids
+        .slice(0, 5)
+        .map((id) => summaryData?.result?.[id])
+        .filter(Boolean);
 
       setGenes(results);
     } catch (err) {
       console.error(err);
-      setError("Erro ao conectar com a API do NCBI.");
-    }
 
-    setLoading(false);
+      setError(
+        err.message ||
+          "Erro inesperado."
+      );
+    } finally {
+      setLoading(false);
+    }
   };
+
+  /*
+  ========================================
+  COMPONENTES UI
+  ========================================
+  */
+
+  const ButtonPrimary = ({
+    children,
+    onClick,
+  }) => (
+    <button
+      onClick={onClick}
+      style={{
+        background: COLORS.primary,
+        color: "white",
+        border: "none",
+        padding: "12px 18px",
+        borderRadius: 8,
+        cursor: "pointer",
+        fontWeight: "bold",
+      }}
+    >
+      {children}
+    </button>
+  );
+
+  const ButtonSecondary = ({
+    children,
+    onClick,
+  }) => (
+    <button
+      onClick={onClick}
+      style={{
+        background: COLORS.surface,
+        color: COLORS.text,
+        border: `1px solid ${COLORS.border}`,
+        padding: "12px 18px",
+        borderRadius: 8,
+        cursor: "pointer",
+      }}
+    >
+      {children}
+    </button>
+  );
+
+  const Card = ({ children }) => (
+    <div
+      style={{
+        background: "white",
+        border: `1px solid ${COLORS.border}`,
+        borderRadius: 12,
+        padding: 20,
+      }}
+    >
+      {children}
+    </div>
+  );
+
+  const Input = (props) => (
+    <input
+      {...props}
+      style={{
+        width: "100%",
+        padding: 12,
+        borderRadius: 8,
+        border: `1px solid ${COLORS.border}`,
+        fontSize: 15,
+      }}
+    />
+  );
+
+  /*
+  ========================================
+  APP
+  ========================================
+  */
 
   return (
     <div>
-      {/* Navbar */}
+      {/* NAVBAR */}
+
       <nav
         style={{
-          height: 64,
+          height: 70,
           borderBottom: `1px solid ${COLORS.border}`,
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
+          justifyContent:
+            "space-between",
           padding: "0 24px",
+          background: "white",
         }}
       >
         <div
+          onClick={() =>
+            setPage("landing")
+          }
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: 12,
             cursor: "pointer",
           }}
-          onClick={() => setPage("landing")}
         >
           <div
             style={{
-              width: 32,
-              height: 32,
-              background: COLORS.primary,
-              borderRadius: 6,
+              width: 38,
+              height: 38,
+              background:
+                COLORS.primary,
+              color: "white",
+              borderRadius: 10,
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              color: "white",
+              justifyContent:
+                "center",
             }}
           >
-            <Icon name="dna" />
+            <IconDNA />
           </div>
 
-          <span style={{ fontWeight: "bold", fontSize: 18 }}>
-            GeneLink
-          </span>
+          <div>
+            <div
+              style={{
+                fontWeight: "bold",
+                fontSize: 18,
+              }}
+            >
+              GeneLink
+            </div>
+
+            <div
+              style={{
+                color:
+                  COLORS.textMuted,
+                fontSize: 12,
+              }}
+            >
+              Genomic Research
+            </div>
+          </div>
         </div>
 
-        <div>
-          {!isLoggedIn ? (
-            <button
-              className="btn-primary"
-              onClick={() => setPage("login")}
-            >
-              Entrar
-            </button>
-          ) : (
-            <span>Olá, {user.name}</span>
-          )}
-        </div>
+        {!isLoggedIn ? (
+          <ButtonPrimary
+            onClick={() =>
+              setPage("login")
+            }
+          >
+            Entrar
+          </ButtonPrimary>
+        ) : (
+          <div
+            style={{
+              color:
+                COLORS.textMuted,
+            }}
+          >
+            Olá, {user?.name}
+          </div>
+        )}
       </nav>
 
-      {/* Páginas */}
-      <main style={{ padding: "40px 24px" }}>
+      {/* MAIN */}
+
+      <main
+        style={{
+          padding: 32,
+          maxWidth: 1100,
+          margin: "0 auto",
+        }}
+      >
+        {/* LANDING */}
+
         {page === "landing" && (
           <div
             style={{
               textAlign: "center",
-              maxWidth: 800,
-              margin: "0 auto",
+              marginTop: 80,
             }}
           >
-            <h1 style={{ fontSize: 40, marginBottom: 20 }}>
-              Plataforma de Pesquisa Genética
+            <h1
+              style={{
+                fontSize: 46,
+                marginBottom: 20,
+              }}
+            >
+              Plataforma de
+              Pesquisa Genética
             </h1>
 
             <p
               style={{
-                color: COLORS.textMuted,
+                color:
+                  COLORS.textMuted,
                 fontSize: 18,
-                marginBottom: 30,
+                maxWidth: 700,
+                margin:
+                  "0 auto 35px auto",
+                lineHeight: 1.6,
               }}
             >
-              Explore dados genéticos reais utilizando a API do NCBI.
+              Pesquise genes reais
+              utilizando dados
+              científicos oficiais do
+              NCBI.
             </p>
 
-            <button
-              className="btn-primary"
-              onClick={() => setPage("login")}
+            <ButtonPrimary
+              onClick={() =>
+                setPage("login")
+              }
             >
-              Começar Agora
-            </button>
+              Começar
+            </ButtonPrimary>
           </div>
         )}
+
+        {/* LOGIN */}
 
         {page === "login" && (
           <div
             style={{
-              maxWidth: 400,
-              margin: "0 auto",
-              textAlign: "center",
+              maxWidth: 420,
+              margin: "50px auto",
             }}
           >
-            <h2>Entrar no GeneLink</h2>
-
-            <div
-              style={{
-                marginTop: 20,
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-              }}
-            >
-              <input type="email" placeholder="Email" />
-
-              <input type="password" placeholder="Senha" />
-
-              <button
-                className="btn-primary"
-                onClick={handleLogin}
+            <Card>
+              <h2
+                style={{
+                  marginBottom: 20,
+                }}
               >
-                Entrar
-              </button>
+                Entrar no GeneLink
+              </h2>
 
-              <button
-                className="btn-secondary"
-                onClick={() => setPage("landing")}
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection:
+                    "column",
+                  gap: 14,
+                }}
               >
-                Voltar
-              </button>
-            </div>
+                <Input
+                  type="email"
+                  placeholder="Email"
+                  value={email}
+                  onChange={(e) =>
+                    setEmail(
+                      e.target.value
+                    )
+                  }
+                />
+
+                <Input
+                  type="password"
+                  placeholder="Senha"
+                  value={password}
+                  onChange={(e) =>
+                    setPassword(
+                      e.target.value
+                    )
+                  }
+                />
+
+                {error && (
+                  <div
+                    style={{
+                      color: "red",
+                      fontSize: 14,
+                    }}
+                  >
+                    {error}
+                  </div>
+                )}
+
+                <ButtonPrimary
+                  onClick={
+                    handleLogin
+                  }
+                >
+                  Entrar
+                </ButtonPrimary>
+
+                <ButtonSecondary
+                  onClick={() =>
+                    setPage(
+                      "landing"
+                    )
+                  }
+                >
+                  Voltar
+                </ButtonSecondary>
+              </div>
+            </Card>
           </div>
         )}
 
-        {page === "dashboard" && (
-          <div style={{ maxWidth: 900, margin: "0 auto" }}>
-            <h2 style={{ marginBottom: 20 }}>
-              Pesquisa Genética
-            </h2>
+        {/* DASHBOARD */}
 
+        {page === "dashboard" && (
+          <div>
             <div
               style={{
-                display: "flex",
-                gap: 10,
-                marginBottom: 20,
+                marginBottom: 28,
               }}
             >
-              <input
-                type="text"
-                placeholder="Pesquisar gene..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ flex: 1 }}
-              />
-
-              <button
-                className="btn-primary"
-                onClick={searchGenes}
+              <h2
+                style={{
+                  marginBottom: 10,
+                }}
               >
-                Pesquisar
-              </button>
+                Pesquisa Genética
+              </h2>
+
+              <p
+                style={{
+                  color:
+                    COLORS.textMuted,
+                }}
+              >
+                Dados em tempo real
+                do NCBI.
+              </p>
             </div>
 
-            {loading && <p>Buscando dados no NCBI...</p>}
+            {/* SEARCH */}
 
-            {error && (
-              <p style={{ color: "red" }}>{error}</p>
+            <Card>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  flexWrap: "wrap",
+                }}
+              >
+                <div
+                  style={{
+                    flex: 1,
+                    minWidth: 240,
+                  }}
+                >
+                  <Input
+                    placeholder="Pesquisar gene..."
+                    value={search}
+                    onChange={(e) =>
+                      setSearch(
+                        e.target.value
+                      )
+                    }
+                    onKeyDown={(e) => {
+                      if (
+                        e.key ===
+                        "Enter"
+                      ) {
+                        searchGenes();
+                      }
+                    }}
+                  />
+                </div>
+
+                <ButtonPrimary
+                  onClick={
+                    searchGenes
+                  }
+                >
+                  Pesquisar
+                </ButtonPrimary>
+              </div>
+            </Card>
+
+            {/* LOADING */}
+
+            {loading && (
+              <div
+                style={{
+                  marginTop: 20,
+                  color:
+                    COLORS.textMuted,
+                }}
+              >
+                Buscando dados no
+                NCBI...
+              </div>
             )}
+
+            {/* ERROR */}
+
+            {error &&
+              page ===
+                "dashboard" && (
+                <div
+                  style={{
+                    marginTop: 20,
+                    color: "red",
+                  }}
+                >
+                  {error}
+                </div>
+              )}
+
+            {/* RESULTS */}
 
             <div
               style={{
                 display: "flex",
-                flexDirection: "column",
-                gap: 16,
+                flexDirection:
+                  "column",
+                gap: 18,
+                marginTop: 24,
               }}
             >
               {genes.map((gene) => (
-                <div
+                <Card
                   key={gene.uid}
-                  className="card"
                 >
-                  <h3>{gene.name}</h3>
+                  <div
+                    style={{
+                      display:
+                        "flex",
+                      justifyContent:
+                        "space-between",
+                      alignItems:
+                        "center",
+                      flexWrap:
+                        "wrap",
+                      gap: 10,
+                    }}
+                  >
+                    <h3>
+                      {gene.name ||
+                        "Gene desconhecido"}
+                    </h3>
+
+                    <div
+                      style={{
+                        fontSize: 13,
+                        color:
+                          COLORS.textMuted,
+                      }}
+                    >
+                      ID:{" "}
+                      {gene.uid}
+                    </div>
+                  </div>
 
                   <p
                     style={{
-                      color: COLORS.textMuted,
-                      marginTop: 8,
+                      marginTop: 12,
+                      color:
+                        COLORS.textMuted,
+                      lineHeight: 1.6,
                     }}
                   >
-                    {gene.description}
+                    {gene.description ||
+                      "Sem descrição disponível."}
                   </p>
 
-                  <p style={{ marginTop: 10 }}>
-                    Organismo: {gene.organism?.scientificname}
-                  </p>
-
-                  <p>ID: {gene.uid}</p>
-                </div>
+                  <div
+                    style={{
+                      marginTop: 16,
+                      fontSize: 14,
+                    }}
+                  >
+                    <strong>
+                      Organismo:
+                    </strong>{" "}
+                    {gene.organism
+                      ?.scientificname ||
+                      "Desconhecido"}
+                  </div>
+                </Card>
               ))}
             </div>
           </div>
