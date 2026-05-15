@@ -135,6 +135,18 @@ export default function App() {
   */
 
   const searchGenes = async () => {
+  setGenes([
+    {
+      uid: "123",
+      name: "BRCA1",
+      description:
+        "Gene associado ao câncer de mama.",
+      organism: {
+        scientificname: "Homo sapiens",
+      },
+    },
+  ]);
+};
     if (!search.trim()) return;
 
     setLoading(true);
