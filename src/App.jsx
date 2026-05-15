@@ -268,7 +268,10 @@ export default function App() {
     </button>
   );
 
-  const Card = ({ children }) => (
+  const Card = ({
+  children,
+  onClick,
+}) => (
     <div
       style={{
         background: "white",
