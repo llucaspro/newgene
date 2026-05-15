@@ -130,10 +130,16 @@ export default function App() {
 
   const [user, setUser] = useState(null);
 
+  const [authMode, setAuthMode] = useState("login");
+
   const [email, setEmail] = useState("");
 
   const [password, setPassword] =
     useState("");
+
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [successMsg, setSuccessMsg] = useState("");
 
   const [search, setSearch] = useState("");
 
@@ -224,6 +230,15 @@ export default function App() {
   ========================================
   */
 
+  const switchAuthMode = (mode) => {
+    setAuthMode(mode);
+    setError("");
+    setSuccessMsg("");
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
       setError("Preencha email e senha.");
@@ -242,6 +257,43 @@ export default function App() {
 
     if (authError) {
       setError(authError.message);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (!email || !password || !confirmPassword) {
+      setError("Preencha todos os campos.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("As senhas não coincidem.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
+    setError("");
+    setSuccessMsg("");
+    setLoading(true);
+
+    const { error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    setLoading(false);
+
+    if (authError) {
+      setError(authError.message);
+    } else {
+      setSuccessMsg("Conta criada! Verifique seu email para confirmar o cadastro.");
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
     }
   };
 
@@ -488,7 +540,7 @@ export default function App() {
           </div>
         )}
 
-        {/* LOGIN */}
+        {/* LOGIN / SIGNUP */}
 
         {page === "login" && (
           <div
@@ -498,19 +550,56 @@ export default function App() {
             }}
           >
             <Card>
-              <h2
+              {/* TAB TOGGLE */}
+              <div
                 style={{
-                  marginBottom: 20,
+                  display: "flex",
+                  borderBottom: `1px solid ${COLORS.border}`,
+                  marginBottom: 24,
                 }}
               >
-                Entrar no GeneLink
-              </h2>
+                <button
+                  onClick={() => switchAuthMode("login")}
+                  style={{
+                    flex: 1,
+                    padding: "10px 0",
+                    background: "none",
+                    border: "none",
+                    borderBottom: authMode === "login"
+                      ? `2px solid ${COLORS.primary}`
+                      : "2px solid transparent",
+                    color: authMode === "login" ? COLORS.primary : COLORS.textMuted,
+                    fontWeight: authMode === "login" ? "bold" : "normal",
+                    cursor: "pointer",
+                    fontSize: 15,
+                  }}
+                >
+                  Entrar
+                </button>
+                <button
+                  onClick={() => switchAuthMode("signup")}
+                  style={{
+                    flex: 1,
+                    padding: "10px 0",
+                    background: "none",
+                    border: "none",
+                    borderBottom: authMode === "signup"
+                      ? `2px solid ${COLORS.primary}`
+                      : "2px solid transparent",
+                    color: authMode === "signup" ? COLORS.primary : COLORS.textMuted,
+                    fontWeight: authMode === "signup" ? "bold" : "normal",
+                    cursor: "pointer",
+                    fontSize: 15,
+                  }}
+                >
+                  Criar Conta
+                </button>
+              </div>
 
               <div
                 style={{
                   display: "flex",
-                  flexDirection:
-                    "column",
+                  flexDirection: "column",
                   gap: 14,
                 }}
               >
@@ -518,49 +607,79 @@ export default function App() {
                   type="email"
                   placeholder="Email"
                   value={email}
-                  onChange={(e) =>
-                    setEmail(
-                      e.target.value
-                    )
-                  }
+                  onChange={(e) => setEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") authMode === "login" ? handleLogin() : handleSignUp();
+                  }}
                 />
 
                 <Input
                   type="password"
                   placeholder="Senha"
                   value={password}
-                  onChange={(e) =>
-                    setPassword(
-                      e.target.value
-                    )
-                  }
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") authMode === "login" ? handleLogin() : handleSignUp();
+                  }}
                 />
+
+                {authMode === "signup" && (
+                  <Input
+                    type="password"
+                    placeholder="Confirmar Senha"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSignUp();
+                    }}
+                  />
+                )}
 
                 {error && (
                   <div
                     style={{
                       color: "red",
                       fontSize: 14,
+                      padding: "10px 12px",
+                      background: "#fff5f5",
+                      borderRadius: 6,
+                      border: "1px solid #fecaca",
                     }}
                   >
                     {error}
                   </div>
                 )}
 
+                {successMsg && (
+                  <div
+                    style={{
+                      color: "#166534",
+                      fontSize: 14,
+                      padding: "10px 12px",
+                      background: "#f0fdf4",
+                      borderRadius: 6,
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    {successMsg}
+                  </div>
+                )}
+
                 <ButtonPrimary
-                  onClick={
-                    handleLogin
-                  }
+                  onClick={authMode === "login" ? handleLogin : handleSignUp}
                 >
-                  Entrar
+                  {loading
+                    ? "Aguarde..."
+                    : authMode === "login"
+                    ? "Entrar"
+                    : "Criar Conta"}
                 </ButtonPrimary>
 
                 <ButtonSecondary
-                  onClick={() =>
-                    setPage(
-                      "landing"
-                    )
-                  }
+                  onClick={() => {
+                    switchAuthMode("login");
+                    setPage("landing");
+                  }}
                 >
                   Voltar
                 </ButtonSecondary>
