@@ -201,6 +201,8 @@ export default function App() {
   */
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUser({ name: session.user.email.split("@")[0] });
@@ -308,6 +310,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    if (!isSupabaseConfigured) return;
     await supabase.auth.signOut();
   };
 
