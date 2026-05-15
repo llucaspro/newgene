@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supabase } from "./supabase";
 
 /*
 ========================================
@@ -189,25 +190,63 @@ export default function App() {
 
   /*
   ========================================
+  AUTH STATE
+  ========================================
+  */
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setUser({ name: session.user.email.split("@")[0] });
+        setIsLoggedIn(true);
+        setPage("dashboard");
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        setUser({ name: session.user.email.split("@")[0] });
+        setIsLoggedIn(true);
+        setPage("dashboard");
+      } else {
+        setUser(null);
+        setIsLoggedIn(false);
+        setPage("landing");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  /*
+  ========================================
   LOGIN
   ========================================
   */
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       setError("Preencha email e senha.");
       return;
     }
 
     setError("");
+    setLoading(true);
 
-    setUser({
-      name: email.split("@")[0],
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
 
-    setIsLoggedIn(true);
+    setLoading(false);
 
-    setPage("dashboard");
+    if (authError) {
+      setError(authError.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
   };
 
   /*
@@ -383,13 +422,13 @@ export default function App() {
             Entrar
           </ButtonPrimary>
         ) : (
-          <div
-            style={{
-              color:
-                COLORS.textMuted,
-            }}
-          >
-            Olá, {user?.name}
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <div style={{ color: COLORS.textMuted }}>
+              Olá, {user?.name}
+            </div>
+            <ButtonSecondary onClick={handleLogout}>
+              Sair
+            </ButtonSecondary>
           </div>
         )}
       </nav>
