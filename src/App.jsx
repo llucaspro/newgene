@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabase";
+import { supabase, isSupabaseConfigured } from "./supabase";
 
 /*
 ========================================
@@ -240,6 +240,11 @@ export default function App() {
   };
 
   const handleLogin = async () => {
+    if (!isSupabaseConfigured) {
+      setError("Supabase não está configurado. Verifique as variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.");
+      return;
+    }
+
     if (!email || !password) {
       setError("Preencha email e senha.");
       return;
@@ -261,6 +266,11 @@ export default function App() {
   };
 
   const handleSignUp = async () => {
+    if (!isSupabaseConfigured) {
+      setError("Supabase não está configurado. Verifique as variáveis de ambiente VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY.");
+      return;
+    }
+
     if (!email || !password || !confirmPassword) {
       setError("Preencha todos os campos.");
       return;
@@ -550,6 +560,26 @@ export default function App() {
             }}
           >
             <Card>
+              {/* SUPABASE CONFIG WARNING */}
+              {!isSupabaseConfigured && (
+                <div
+                  style={{
+                    background: "#fffbeb",
+                    border: "1px solid #fcd34d",
+                    borderRadius: 8,
+                    padding: "10px 14px",
+                    marginBottom: 20,
+                    fontSize: 13,
+                    color: "#92400e",
+                  }}
+                >
+                  <strong>Configuração incompleta:</strong> As variáveis{" "}
+                  <code>VITE_SUPABASE_URL</code> e{" "}
+                  <code>VITE_SUPABASE_ANON_KEY</code> não foram encontradas.
+                  Verifique as variáveis de ambiente no Vercel e faça um novo deploy.
+                </div>
+              )}
+
               {/* TAB TOGGLE */}
               <div
                 style={{
